@@ -212,12 +212,13 @@
             scrollbar-width: none;
         }
 
-        /* 迷你开关样式 - 缩小版 */
+        /* 迷你开关样式 */
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 16px;  /* 缩小宽度 */
-            height: 8px; /* 缩小高度 */
+            width: 24px;  /* 稍微加大宽度以便观察 */
+            height: 12px; /* 稍微加大高度 */
+            pointer-events: none; /* 让点击事件穿透给父级 Label */
         }
         .toggle-switch input { 
             opacity: 0;
@@ -233,25 +234,26 @@
             bottom: 0;
             background-color: rgba(255,255,255,0.2);
             transition: .4s;
-            border-radius: 8px;
+            border-radius: 12px;
         }
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 6px; /* 缩小滑块 */
-            width: 6px;
-            left: 1px;
-            bottom: 1px;
+            height: 8px;
+            width: 8px;
+            left: 2px;
+            bottom: 2px;
             background-color: white;
             transition: .4s;
             border-radius: 50%;
         }
+        /* 选中状态 */
         input:checked + .toggle-slider {
-            background-color: #10b981;
-            box-shadow: 0 0 3px #10b981;
+            background-color: #10b981; /* 绿色 */
+            box-shadow: 0 0 5px #10b981;
         }
         input:checked + .toggle-slider:before {
-            transform: translateX(8px);
+            transform: translateX(12px);
         }
     </style>
 </head>
@@ -340,7 +342,7 @@
 
     <script>
         // *** 配置区域 ***
-        // 请在此处填入你的天行数据 API KEY
+        // ！！！请在这里填入你的天行数据 API KEY ！！！
         const TIANXING_API_KEY = "78314ad5e2367f931afd03a70d8acccc"; 
         
         // 全局开关状态，默认关闭
@@ -400,15 +402,18 @@
 
         // 获取运势数据 (API + Fallback)
         async function fetchFortuneData(signName) {
+            // 清理 Key 中的空格
+            const cleanKey = TIANXING_API_KEY ? TIANXING_API_KEY.trim() : "";
+
             // 如果开关没开 或 没有Key，直接用模拟数据
-            if (!isApiEnabled || !TIANXING_API_KEY) {
+            if (!isApiEnabled || !cleanKey) {
                 console.log("API disabled or no key, utilizing simulation.");
                 return getSimulatedFortune(signName);
             }
 
             try {
                 // 天行数据 API 接口
-                const url = `https://apis.tianapi.com/star/index?key=${78314ad5e2367f931afd03a70d8acccc}&astro=${encodeURIComponent(signName)}`;
+                const url = `https://apis.tianapi.com/star/index?key=${cleanKey}&astro=${encodeURIComponent(signName)}`;
                 const response = await fetch(url);
                 const data = await response.json();
 
@@ -416,11 +421,14 @@
                     console.log("API Success, utilizing real data.");
                     return mapApiData(data.result);
                 } else {
-                    console.warn("API returned error (Quota exceeded or Invalid Key):", data.msg);
+                    console.warn("API Error:", data.msg);
+                    // ！！！关键修改：如果开了开关但失败，给用户弹窗提示！！！
+                    alert(`API 请求失败: ${data.msg}\n已自动切换为模拟数据。请检查 Key 是否正确或额度是否充足。`);
                     return getSimulatedFortune(signName);
                 }
             } catch (error) {
                 console.error("Network request failed:", error);
+                alert("网络请求失败，请检查网络连接。\n已自动切换为模拟数据。");
                 return getSimulatedFortune(signName);
             }
         }
@@ -534,7 +542,7 @@
 
                 // 创建主按钮容器 (Flex列布局)
                 const mainControlContainer = document.createElement('div');
-                // 下沉至 bottom-1 (更低)
+                // 下沉至 bottom-1
                 mainControlContainer.className = 'absolute bottom-2 left-0 w-full flex flex-col items-center gap-1 opacity-0 animate-fade-in-up z-20';
                 mainControlContainer.style.animationDelay = '0.6s';
 
@@ -557,9 +565,10 @@
                     mainControlContainer.remove(); 
                 });
 
-                // 2. API 开关 (微型)
+                // 2. API 开关 (隐形且加大点击区域)
                 const toggleWrapper = document.createElement('label');
-                toggleWrapper.className = 'flex items-center gap-1 cursor-pointer opacity-30 hover:opacity-80 transition-opacity';
+                // 使用 padding 扩大点击热区，opacity 控制隐蔽性
+                toggleWrapper.className = 'flex items-center justify-center cursor-pointer opacity-30 hover:opacity-100 transition-opacity p-2';
                 toggleWrapper.title = "Toggle API";
 
                 const checkbox = document.createElement('input');
@@ -576,12 +585,27 @@
                 // 劫持 toggleUI 内部 input 的点击
                 const realInput = toggleUI.querySelector('input');
                 
+                // 处理点击逻辑
+                function handleToggle(e) {
+                     e.stopPropagation();
+                     const target = e.target.type === 'checkbox' ? e.target : realInput;
+                     // 如果是wrapper点击触发，需要手动切换input
+                     if (e.currentTarget === toggleWrapper && e.target !== realInput) {
+                         realInput.checked = !realInput.checked;
+                     }
+                     isApiEnabled = realInput.checked;
+                     // 更新开关颜色 (通过CSS :checked 实现)
+                }
+
                 realInput.addEventListener('change', (e) => {
-                    e.stopPropagation(); 
+                    e.stopPropagation();
                     isApiEnabled = e.target.checked;
-                    // 无文字反馈，只靠颜色变化
                 });
-                toggleWrapper.addEventListener('click', (e) => e.stopPropagation());
+                toggleWrapper.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // 这里不需要手动切换，因为label包裹input会自动触发
+                });
+
                 toggleWrapper.appendChild(toggleUI);
 
                 mainControlContainer.appendChild(btn);
@@ -650,7 +674,7 @@
             wheel.appendChild(cardWrapper);
         });
 
-        // 接收数据并显示 (字体恢复正常版)
+        // 接收数据并显示 (字体恢复正常)
         function showFortuneDetail(cardElement, signName, fortuneData) {
             const backFace = cardElement.querySelector('.card-inner > div:last-child');
             
