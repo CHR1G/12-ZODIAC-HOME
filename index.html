@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zodiac Collection</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;700&family=Noto+Sans+SC:wght@100;300;400&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- 字体定义 --- */
+        .font-en {
+            font-family: 'Futura', 'Jost', sans-serif;
+        }
+        
+        .font-cn {
+            font-family: 'PangMenZhengDao XiXianTi', 'PangMenZhengDao', 'Alibaba PuHuiTi', 'Noto Sans SC', sans-serif;
+            font-weight: 300;
+        }
+
+        /* --- 基础样式 --- */
+        body {
+            background-color: #0a0a0f;
+            overflow-x: hidden;
+            font-family: 'Futura', 'Jost', sans-serif;
+            cursor: none; 
+        }
+
+        /* 3D 视距容器 */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .preserve-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+
+        /* --- 动画定义 --- */
+        @keyframes spin-wheel {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin-wheel {
+            animation: spin-wheel 80s linear infinite;
+            will-change: transform;
+            transform-origin: 0 0;
+            transform: translateZ(0); 
+        }
+        
+        .paused {
+            animation-play-state: paused !important;
+        }
+
+        @keyframes shine { 
+            0% { background-position: 200% 0; } 
+            100% { background-position: -200% 0; } 
+        }
+        .animate-shine { animation: shine 4s linear infinite; }
+
+        /* 能量条扫光动画 */
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+            animation: shimmer 2s infinite linear;
+        }
+
+        .text-shine-silver {
+            background: linear-gradient(to right, #666 0%, #fff 40%, #fff 60%, #666 100%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shine 3s linear infinite;
+        }
+
+        @keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1); } }
+        .animate-twinkle { animation: twinkle 3s ease-in-out infinite; }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+        }
+        .animate-breathe {
+            animation: breathe 4s ease-in-out infinite;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+            animation-delay: 0.6s; 
+        }
+
+        /* 能量条加载动画 */
+        @keyframes growWidth {
+            from { width: 0; }
+        }
+        .animate-grow {
+            animation: growWidth 1s ease-out forwards;
+        }
+
+        /* --- 卡片样式 --- */
+        .card-inner {
+            transform-style: preserve-3d;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-container {
+            transition: transform 0.3s ease-out;
+            will-change: transform;
+        }
+        .card-container:not(.invisible):hover {
+            transform: scale(1.05);
+        }
+        
+        .cursor-particle {
+            pointer-events: none;
+            position: fixed;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 0 10px rgba(255,255,255,0.9);
+            transform: translate(-50%, -50%);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        #overlay-backdrop {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+        #overlay-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .active-card-clone {
+            position: fixed;
+            z-index: 50;
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-style: preserve-3d;
+            cursor: none;
+            box-sizing: border-box;
+        }
+
+        .dust-particle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 4px rgba(200, 240, 255, 0.8);
+            opacity: 0;
+            z-index: 0; 
+        }
+        @keyframes dust-fall {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            10% { opacity: 1; transform: translateY(10px) scale(1); }
+            100% { transform: translateY(300px) scale(0.2); opacity: 0; }
+        }
+
+        .design-by {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            color: rgba(255, 255, 255, 0.3);
+            z-index: 40;
+            pointer-events: none;
+            font-family: 'Futura', monospace;
+        }
+
+        /* 按钮样式 */
+        .fortune-btn {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 9px;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+        .fortune-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: white;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        /* 隐藏滚动条但保留滚动功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* 迷你开关样式 - 缩小版 */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 16px;  /* 缩小宽度 */
+            height: 8px; /* 缩小高度 */
+        }
+        .toggle-switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.2);
+            transition: .4s;
+            border-radius: 8px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 6px; /* 缩小滑块 */
+            width: 6px;
+            left: 1px;
+            bottom: 1px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #10b981;
+            box-shadow: 0 0 3px #10b981;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(8px);
+        }
+    </style>
+</head>
+<body class="min-h-[150vh] flex flex-col items-center selection:bg-gray-300/30 pb-20 relative text-white">
+
+    <!-- === 全屏遮罩层 === -->
+    <div id="overlay-backdrop" class="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+        <div class="absolute bottom-10 text-gray-400 text-sm tracking-widest opacity-80 animate-pulse font-en">
+            CLICK ANYWHERE TO CLOSE
+        </div>
+    </div>
+
+    <!-- === 魔法光标 === -->
+    <div id="cursor-container" class="pointer-events-none fixed inset-0 z-[9999] overflow-hidden">
+        <div id="main-cursor" class="absolute transition-transform duration-75 ease-out" style="left: -100px; top: -100px;">
+            <div class="relative transform -translate-x-1/2 -translate-y-1/2">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="animate-pulse-fast drop-shadow-[0_0_12px_rgba(255,255,255,0.9)]">
+                    <path d="M12 0L14.8284 9.17157L24 12L14.8284 14.8284L12 24L9.17157 14.8284L0 12L9.17157 9.17157L12 0Z" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+                </svg>
+                <div class="absolute inset-0 bg-white/40 blur-xl rounded-full transform scale-150 -z-10"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 1. 动态星空背景 === -->
+    <div id="star-bg" class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-950/40 via-[#0a0a0f] to-[#0a0a0f]"></div>
+    </div>
+
+    <!-- === 3. 主内容层 === -->
+    <div class="relative w-full flex-grow z-10 flex flex-col items-center">
+        <!-- 标题 -->
+        <div class="z-20 text-center mt-12 md:mt-24 mb-8 relative">
+            <h1 class="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-100 via-gray-300 to-gray-400 tracking-wider font-en" style="text-shadow: 0 0 20px rgba(255,255,255,0.3);">
+                ZODIAC COLLECTION
+            </h1>
+            <div class="flex items-center justify-center gap-2 mt-4 text-gray-400">
+               <div class="h-[1px] w-12 bg-gradient-to-r from-transparent to-gray-500"></div>
+               <p class="text-xs md:text-sm tracking-[0.3em] uppercase font-en">Tap a card to reveal fortune</p>
+               <div class="h-[1px] w-12 bg-gradient-to-l from-transparent to-gray-500"></div>
+            </div>
+        </div>
+
+        <!-- 旋转区域容器 -->
+        <div class="relative w-full overflow-visible flex justify-center" style="min-height: 1200px;">
+            <!-- 共享的绝对定位锚点：包含轮盘和中心静止图 -->
+            <div class="absolute left-1/2 top-[550px] -translate-x-1/2 -translate-y-1/2 w-0 h-0 perspective-1000 z-10" style="transform-style: preserve-3d;">
+                
+                <!-- A. 轮盘 (旋转) -->
+                <div id="wheel" class="w-0 h-0 relative preserve-3d animate-spin-wheel z-10">
+                    <!-- 卡片由 JS 生成 -->
+                </div>
+
+                <!-- B. 中心图 (静止) - 作为兄弟元素，放在同一个锚点容器中 -->
+                <div id="center-container" class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-80 h-80 md:w-[450px] md:h-[450px] pointer-events-auto cursor-pointer group transition-transform duration-100 ease-out z-20">
+                    <div id="dust-waterfall" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 z-0 overflow-visible"></div>
+                    <img 
+                        src="ZODIAC-0.PNG" 
+                        alt="Zodiac Center" 
+                        class="w-full h-full object-contain relative z-10"
+                        style="mix-blend-mode: screen; filter: drop-shadow(0 0 50px rgba(255,255,255,0.15));"
+                        onerror="this.src='https://cdn-icons-png.flaticon.com/512/5551/5551368.png'; this.style.opacity='0.5'"
+                    />
+                </div>
+
+                <!-- C. 中心文字 (静止) - 同样基于锚点定位 -->
+                <p class="absolute left-0 top-[180px] md:top-[235px] -translate-x-1/2 mt-4 text-[10px] md:text-xs tracking-[0.5em] font-en text-gray-400 opacity-80 w-max text-center z-20 pointer-events-none" style="text-shadow: 0 0 10px rgba(255,255,255,0.2);">
+                    MY PRIVATE GALAXY
+                </p>
+
+            </div>
+        </div>
+
+        <!-- 底部 Logo -->
+        <div class="z-20 mt-12 mb-32 flex justify-center w-full relative">
+            <div class="animate-breathe">
+                <img src="https://i.postimg.cc/Z536Fnkk/logo1.png" alt="Chris Logo" class="w-24 md:w-32 object-contain opacity-90">
+            </div>
+        </div>
+    </div>
+
+    <!-- === 右下角署名 === -->
+    <div class="design-by">
+        DESIGN BY CHRIS 👽
+    </div>
+
+    <script>
+        // *** 配置区域 ***
+        // 请在此处填入你的天行数据 API KEY
+        const TIANXING_API_KEY = "78314ad5e2367f931afd03a70d8acccc"; 
+        
+        // 全局开关状态，默认关闭
+        let isApiEnabled = false;
+
+        const zodiacs = [
+          { name: 'Aries', symbol: '♈', label: '白羊座', date: '3.21-4.19' },
+          { name: 'Taurus', symbol: '♉', label: '金牛座', date: '4.20-5.20' },
+          { name: 'Gemini', symbol: '♊', label: '双子座', date: '5.21-6.21' },
+          { name: 'Cancer', symbol: '♋', label: '巨蟹座', date: '6.22-7.22' },
+          { name: 'Leo', symbol: '♌', label: '狮子座', date: '7.23-8.22' },
+          { name: 'Virgo', symbol: '♍', label: '处女座', date: '8.23-9.22' },
+          { name: 'Libra', symbol: '♎', label: '天秤座', date: '9.23-10.23' },
+          { name: 'Scorpio', symbol: '♏', label: '天蝎座', date: '10.24-11.22' },
+          { name: 'Sagittarius', symbol: '♐', label: '射手座', date: '11.23-12.21' },
+          { name: 'Capricorn', symbol: '♑', label: '摩羯座', date: '12.22-1.19' },
+          { name: 'Aquarius', symbol: '♒', label: '水瓶座', date: '1.20-2.18' },
+          { name: 'Pisces', symbol: '♓', label: '双鱼座', date: '2.19-3.20' },
+        ];
+
+        const wheel = document.getElementById('wheel');
+        const starBg = document.getElementById('star-bg');
+        const overlayBackdrop = document.getElementById('overlay-backdrop');
+        const centerContainer = document.getElementById('center-container'); 
+        const dustWaterfall = document.getElementById('dust-waterfall'); 
+        
+        let activeClone = null;
+        let activeOriginal = null;
+        let wheelPausedByClick = false;
+        let isHoveringCenter = false;
+
+        // 模拟数据生成器 (Fallback)
+        function getSimulatedFortune(signName) {
+            const randomScore = () => Math.floor(Math.random() * 30 + 70);
+            const colors = ['金色', '银色', '深蓝', '紫色', '翠绿', '酒红', '纯白'];
+            const nobles = ['处女座', '天秤座', '双子座', '金牛座', '狮子座', '摩羯座'];
+            const overviews = [
+                "今天朋友里面有些计较算计的人，沟通不顺利。部分人可能会比较想宅家躺吃...",
+                "灵感迸发的一天，适合进行艺术创作或规划未来，保持开放的心态会有意外收获。",
+                "可能会遇到一些小挑战，但只要保持冷静，贵人会在关键时刻出现助你一臂之力。",
+                "财运不错，适合理财规划。但在人际交往中要注意言辞，避免不必要的误会。",
+                "工作效率极高，之前的努力开始看到回报。记得多喝水，注意身体健康。"
+            ];
+
+            return [
+                { type: "综合指数", value: randomScore(), isBar: true, barColor: "bg-gradient-to-r from-gray-300 to-white" },
+                { type: "爱情指数", value: randomScore(), isBar: true, barColor: "bg-pink-300/80 shadow-[0_0_5px_rgba(249,168,212,0.6)]" },
+                { type: "工作指数", value: randomScore(), isBar: true, barColor: "bg-blue-300/80 shadow-[0_0_5px_rgba(147,197,253,0.6)]" },
+                { type: "财运指数", value: randomScore(), isBar: true, barColor: "bg-yellow-200/80 shadow-[0_0_5px_rgba(254,240,138,0.6)]" },
+                { type: "健康指数", value: randomScore(), isBar: true, barColor: "bg-emerald-300/80 shadow-[0_0_5px_rgba(110,231,183,0.6)]" },
+                { type: "幸运颜色", value: colors[Math.floor(Math.random() * colors.length)], isBar: false },
+                { type: "幸运数字", value: Math.floor(Math.random() * 9 + 1).toString(), isBar: false },
+                { type: "贵人星座", value: nobles[Math.floor(Math.random() * nobles.length)], isBar: false },
+                { type: "今日概述", value: overviews[Math.floor(Math.random() * overviews.length)], isBar: false }
+            ];
+        }
+
+        // 获取运势数据 (API + Fallback)
+        async function fetchFortuneData(signName) {
+            // 如果开关没开 或 没有Key，直接用模拟数据
+            if (!isApiEnabled || !TIANXING_API_KEY) {
+                console.log("API disabled or no key, utilizing simulation.");
+                return getSimulatedFortune(signName);
+            }
+
+            try {
+                // 天行数据 API 接口
+                const url = `https://apis.tianapi.com/star/index?key=${78314ad5e2367f931afd03a70d8acccc}&astro=${encodeURIComponent(signName)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.code === 200 && data.result) {
+                    console.log("API Success, utilizing real data.");
+                    return mapApiData(data.result);
+                } else {
+                    console.warn("API returned error (Quota exceeded or Invalid Key):", data.msg);
+                    return getSimulatedFortune(signName);
+                }
+            } catch (error) {
+                console.error("Network request failed:", error);
+                return getSimulatedFortune(signName);
+            }
+        }
+
+        // 将 API 返回的数据格式化为我们需要的格式
+        function mapApiData(result) {
+            return [
+                { type: "综合指数", value: parseInt(result.comprehensive || 80), isBar: true, barColor: "bg-gradient-to-r from-gray-300 to-white" },
+                { type: "爱情指数", value: parseInt(result.love || 80), isBar: true, barColor: "bg-pink-300/80 shadow-[0_0_5px_rgba(249,168,212,0.6)]" },
+                { type: "工作指数", value: parseInt(result.work || 80), isBar: true, barColor: "bg-blue-300/80 shadow-[0_0_5px_rgba(147,197,253,0.6)]" },
+                { type: "财运指数", value: parseInt(result.money || 80), isBar: true, barColor: "bg-yellow-200/80 shadow-[0_0_5px_rgba(254,240,138,0.6)]" },
+                { type: "健康指数", value: parseInt(result.health || 80), isBar: true, barColor: "bg-emerald-300/80 shadow-[0_0_5px_rgba(110,231,183,0.6)]" },
+                { type: "幸运颜色", value: result.color || "未知", isBar: false },
+                { type: "幸运数字", value: result.number ? result.number.toString() : "7", isBar: false },
+                { type: "贵人星座", value: result.qfriend || "未知", isBar: false },
+                { type: "今日概述", value: result.summary || "今日运势平稳，适合静心修养。", isBar: false }
+            ];
+        }
+
+        function createStars() {
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                const size = Math.random() * 2 + 1;
+                star.className = 'absolute rounded-full bg-white animate-twinkle opacity-0';
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 5}s`;
+                star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+                star.style.boxShadow = `0 0 ${size * 2}px rgba(255, 255, 255, 0.8)`;
+                starBg.appendChild(star);
+            }
+        }
+        createStars();
+
+        function getWheelRotation() {
+            const style = window.getComputedStyle(wheel);
+            const matrix = new WebKitCSSMatrix(style.transform);
+            return Math.atan2(matrix.m12, matrix.m11) * (180 / Math.PI);
+        }
+
+        zodiacs.forEach((zodiac, index) => {
+            const angle = (index / 12) * 360;
+            const radius = 420;
+            const imgIndex = index + 1;
+            const frontImg = `Z-${imgIndex}.PNG`;
+            const backImg = `B-${imgIndex}.PNG`;
+
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'absolute w-32 h-48 -ml-16 -mt-24 md:w-40 md:h-60 md:-ml-20 md:-mt-30 preserve-3d';
+            cardWrapper.dataset.baseAngle = angle; 
+            cardWrapper.style.transform = `rotate(${angle}deg) translate(${radius}px) rotate(90deg)`;
+
+            const cardContainer = document.createElement('div');
+            cardContainer.className = 'card-container w-full h-full cursor-none perspective-1000 group';
+            
+            cardContainer.addEventListener('mouseenter', () => {
+                if (!wheelPausedByClick) wheel.classList.add('paused');
+            });
+            cardContainer.addEventListener('mouseleave', () => {
+                if (!wheelPausedByClick) wheel.classList.remove('paused');
+            });
+
+            cardContainer.addEventListener('click', function(e) {
+                if (activeClone) return;
+
+                e.stopPropagation();
+                wheelPausedByClick = true;
+                wheel.classList.add('paused');
+                activeOriginal = this;
+
+                const rect = this.getBoundingClientRect();
+                const currentWheelAngle = getWheelRotation();
+                const totalRotation = currentWheelAngle + angle + 90;
+
+                const innerHtml = this.innerHTML;
+                activeClone = document.createElement('div');
+                activeClone.innerHTML = innerHtml;
+                activeClone.className = 'active-card-clone perspective-1000';
+                
+                // 设置初始尺寸
+                const isDesktop = window.innerWidth >= 768;
+                const baseWidth = isDesktop ? 160 : 128; // w-40 / w-32
+                const baseHeight = isDesktop ? 240 : 192; // h-60 / h-48
+
+                activeClone.style.width = baseWidth + 'px';
+                activeClone.style.height = baseHeight + 'px';
+
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                activeClone.style.left = centerX + 'px';
+                activeClone.style.top = centerY + 'px';
+
+                const initialScale = rect.height / baseHeight;
+
+                activeClone.style.transform = `translate(-50%, -50%) scale(${initialScale}) rotate(${totalRotation}deg)`;
+
+                // 1. 注入初始背面内容
+                const backFace = activeClone.querySelector('.card-inner > div:last-child');
+                
+                const textContainer = backFace.querySelector('.absolute.bottom-0');
+                if (textContainer) {
+                    textContainer.className = 'absolute top-0 left-0 w-full pt-2 text-center text-white'; 
+                    const bgGradient = backFace.querySelector('.bg-gradient-to-t');
+                    if (bgGradient) {
+                        bgGradient.className = 'absolute inset-0 bg-gradient-to-b from-black/90 via-black/20 to-transparent';
+                    }
+                }
+
+                // 创建主按钮容器 (Flex列布局)
+                const mainControlContainer = document.createElement('div');
+                // 下沉至 bottom-1 (更低)
+                mainControlContainer.className = 'absolute bottom-2 left-0 w-full flex flex-col items-center gap-1 opacity-0 animate-fade-in-up z-20';
+                mainControlContainer.style.animationDelay = '0.6s';
+
+                // 1. 运势按钮
+                const btn = document.createElement('button');
+                btn.className = 'fortune-btn font-cn hover:scale-105 active:scale-95 flex items-center gap-2 relative z-10';
+                btn.innerHTML = '<span>今日运势</span>';
+                
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation(); 
+                    
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<span class="animate-pulse">计算中...</span>';
+                    btn.style.pointerEvents = 'none';
+
+                    // 传递状态
+                    const fortuneData = await fetchFortuneData(zodiac.label);
+                    
+                    showFortuneDetail(activeClone, zodiac.label, fortuneData);
+                    mainControlContainer.remove(); 
+                });
+
+                // 2. API 开关 (微型)
+                const toggleWrapper = document.createElement('label');
+                toggleWrapper.className = 'flex items-center gap-1 cursor-pointer opacity-30 hover:opacity-80 transition-opacity';
+                toggleWrapper.title = "Toggle API";
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'hidden'; 
+                checkbox.checked = isApiEnabled;
+                
+                const toggleUI = document.createElement('div');
+                toggleUI.className = 'toggle-switch';
+                toggleUI.innerHTML = `
+                    <input type="checkbox" ${isApiEnabled ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                `;
+                // 劫持 toggleUI 内部 input 的点击
+                const realInput = toggleUI.querySelector('input');
+                
+                realInput.addEventListener('change', (e) => {
+                    e.stopPropagation(); 
+                    isApiEnabled = e.target.checked;
+                    // 无文字反馈，只靠颜色变化
+                });
+                toggleWrapper.addEventListener('click', (e) => e.stopPropagation());
+                toggleWrapper.appendChild(toggleUI);
+
+                mainControlContainer.appendChild(btn);
+                mainControlContainer.appendChild(toggleWrapper);
+                
+                backFace.appendChild(mainControlContainer);
+
+                this.classList.add('invisible');
+                document.body.appendChild(activeClone);
+                overlayBackdrop.classList.add('active');
+
+                requestAnimationFrame(() => {
+                    activeClone.style.left = '50%';
+                    activeClone.style.top = '50%';
+                    const zoomScale = isDesktop ? 2.5 : 2.2;
+                    activeClone.style.transform = `translate(-50%, -50%) scale(${zoomScale}) rotate(0deg)`;
+                    const inner = activeClone.querySelector('.card-inner');
+                    inner.classList.add('flipped');
+                });
+            });
+
+            // 卡片 HTML 结构
+            cardContainer.innerHTML = `
+                <div class="card-inner">
+                    <!-- 正面 -->
+                    <div class="absolute inset-0 backface-hidden rounded-xl z-0">
+                        <div class="absolute inset-[-1.5px] rounded-xl overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                             <div class="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_300deg,#ffffff_360deg)] animate-spin-fast blur-[1px]"></div>
+                        </div>
+                        <div class="absolute inset-0 rounded-xl overflow-hidden shadow-2xl bg-black border border-gray-800">
+                            <div class="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-950 to-gray-900"></div>
+                            <div class="absolute inset-0 flex flex-col items-center justify-between p-4">
+                                <div class="text-[9px] text-gray-500 font-en tracking-[0.2em] opacity-50 w-full text-center">
+                                    ${zodiac.date}
+                                </div>
+                                <div class="flex-grow flex items-center justify-center w-full relative overflow-hidden py-2">
+                                     <img src="${frontImg}" alt="${zodiac.name} Symbol" 
+                                          class="w-full h-full object-contain"
+                                          style="mix-blend-mode: screen;"
+                                          onerror="this.style.display='none'">
+                                </div>
+                                <div class="text-xs font-cn tracking-[0.3em] text-gray-300 uppercase bg-clip-text text-transparent bg-gradient-to-r from-gray-200 to-gray-500 w-full text-center">
+                                    ${zodiac.label}
+                                </div>
+                            </div>
+                            <div class="absolute inset-0 opacity-20 bg-[linear-gradient(110deg,transparent_25%,rgba(255,255,255,0.4)_50%,transparent_75%)] bg-[length:250%_100%] animate-shine pointer-events-none"></div>
+                        </div>
+                    </div>
+
+                    <!-- 背面 -->
+                    <div class="absolute inset-0 backface-hidden rounded-xl overflow-hidden shadow-xl bg-gray-900 border border-gray-400/30 z-10" style="transform: rotateY(180deg);">
+                        <div class="absolute inset-0 border-2 border-gray-400/20 rounded-xl z-20 pointer-events-none"></div>
+                        <div class="w-full h-full relative group-hover:brightness-110 transition-all">
+                            <img src="${backImg}" alt="${zodiac.name} Back" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                            <!-- 底部文字 -->
+                            <div class="absolute bottom-0 left-0 w-full p-4 text-center text-white">
+                                <p class="text-[8px] font-en opacity-70 uppercase tracking-widest mb-1 text-gray-400">Collection</p>
+                                <p class="text-sm font-en font-bold leading-tight">${zodiac.name}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            cardWrapper.appendChild(cardContainer);
+            wheel.appendChild(cardWrapper);
+        });
+
+        // 接收数据并显示 (字体恢复正常版)
+        function showFortuneDetail(cardElement, signName, fortuneData) {
+            const backFace = cardElement.querySelector('.card-inner > div:last-child');
+            
+            const detailOverlay = document.createElement('div');
+            // 改为 Flex 纵向布局，确保页头页尾固定，中间滚动
+            detailOverlay.className = 'absolute inset-0 flex flex-col p-2 rounded-xl opacity-0 animate-fade-in-up bg-black/70 backdrop-blur-[2px] border border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)] z-30 overflow-hidden';
+            
+            // 1. 固定页头 (恢复字体尺寸)
+            let contentHtml = `
+                <div class="shrink-0 text-center w-full bg-black/40 p-1.5 rounded-lg border-b border-white/10 backdrop-blur-sm mb-1">
+                    <p class="text-[7px] text-gray-300 font-en tracking-[0.2em] mb-0.5 opacity-80">TODAY'S FORTUNE</p>
+                    <h3 class="text-sm font-cn text-shine-silver font-bold leading-tight drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">${signName}</h3>
+                </div>
+                
+                <!-- 2. 可滚动内容区 (恢复字体尺寸) -->
+                <div class="flex-grow overflow-y-auto no-scrollbar space-y-0.5 text-left w-full text-[8px] font-light text-gray-300 p-1 leading-tight">
+            `;
+
+            // 循环生成运势条目
+            fortuneData.forEach(item => {
+                if (item.type !== '今日概述') {
+                    if (item.isBar) {
+                        contentHtml += `
+                            <div class="flex items-center justify-between mb-0.5">
+                                <span class="text-gray-400 font-cn scale-90 origin-left w-12 shrink-0">${item.type}</span>
+                                <div class="flex-grow h-0.5 bg-gray-700/50 rounded-full mx-1 relative overflow-hidden">
+                                    <div class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" style="width: 100%;"></div>
+                                    <div class="h-full rounded-full animate-grow ${item.barColor} relative z-10" style="width: ${item.value}%"></div>
+                                </div>
+                                <span class="font-en text-white text-[7px] w-4 text-right shrink-0">${item.value}%</span>
+                            </div>
+                        `;
+                    } else {
+                        contentHtml += `
+                            <div class="flex justify-between items-center mb-0.5">
+                                <span class="text-gray-400 font-cn scale-90 origin-left shrink-0">${item.type}</span>
+                                <span class="font-cn text-white scale-90 origin-right text-right">${item.value}</span>
+                            </div>
+                        `;
+                    }
+                }
+            });
+
+            // 获取今日概述
+            const summaryItem = fortuneData.find(i => i.type === '今日概述');
+            const summaryText = summaryItem ? summaryItem.value : "暂无概述";
+
+            contentHtml += `
+                    <div class="pt-2 border-t border-white/10 mt-1">
+                        <p class="italic text-white/90 leading-snug font-cn text-[8px] opacity-90 text-justify">"${summaryText}"</p>
+                    </div>
+                </div>
+
+                <!-- 3. 固定页尾 -->
+                <div class="shrink-0 mt-1 pt-1 border-t border-white/5">
+                    <div class="text-[6px] text-gray-500 text-center font-en tracking-widest opacity-60">CLICK TO CLOSE</div>
+                </div>
+            `;
+
+            detailOverlay.innerHTML = contentHtml;
+            backFace.appendChild(detailOverlay);
+        }
+
+        function closeActiveCard() {
+            if (!activeClone || !activeOriginal) return;
+            const rect = activeOriginal.getBoundingClientRect();
+            // 还原版缩放基准
+            const isDesktop = window.innerWidth >= 768;
+            const baseHeight = isDesktop ? 240 : 192; // h-60 / h-48
+            const targetScale = rect.height / baseHeight;
+            
+            const currentWheelAngle = getWheelRotation();
+            let angle = parseFloat(activeOriginal.parentElement.style.transform.match(/rotate\(([-\d.]+)deg\)/)[1]);
+            let totalRotation = currentWheelAngle + angle + 90;
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            activeClone.style.left = centerX + 'px';
+            activeClone.style.top = centerY + 'px';
+            activeClone.style.transform = `translate(-50%, -50%) scale(${targetScale}) rotate(${totalRotation}deg)`;
+            const inner = activeClone.querySelector('.card-inner');
+            inner.classList.remove('flipped'); 
+            const overlays = activeClone.querySelectorAll('.animate-fade-in-up');
+            overlays.forEach(el => el.style.opacity = '0');
+            overlayBackdrop.classList.remove('active');
+
+            setTimeout(() => {
+                activeOriginal.classList.remove('invisible');
+                if (activeClone) activeClone.remove();
+                activeClone = null;
+                activeOriginal = null;
+                wheelPausedByClick = false;
+                wheel.classList.remove('paused');
+            }, 800);
+        }
+
+        overlayBackdrop.addEventListener('click', closeActiveCard);
+        document.body.addEventListener('click', (e) => {
+            if (activeClone && (e.target === activeClone || activeClone.contains(e.target))) {
+                // closeActiveCard(); 
+            }
+        });
+
+        const mainCursor = document.getElementById('main-cursor');
+        const cursorContainer = document.getElementById('cursor-container');
+        document.addEventListener('mousemove', (e) => {
+            mainCursor.style.left = e.clientX + 'px';
+            mainCursor.style.top = e.clientY + 'px';
+            if (Math.random() > 0.3) {
+                const particle = document.createElement('div');
+                const size = Math.random() * 4 + 2;
+                particle.className = 'cursor-particle';
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                particle.style.left = e.clientX + 'px';
+                particle.style.top = e.clientY + 'px';
+                cursorContainer.appendChild(particle);
+                requestAnimationFrame(() => {
+                    particle.offsetHeight; 
+                    particle.style.transform = `translate(-50%, -50%) scale(0)`;
+                    particle.style.opacity = '0';
+                });
+                setTimeout(() => { particle.remove(); }, 500);
+            }
+        });
+
+        centerContainer.addEventListener('mouseenter', () => isHoveringCenter = true);
+        centerContainer.addEventListener('mouseleave', () => isHoveringCenter = false);
+
+        function spawnDust() {
+            if (isHoveringCenter) {
+                if (Math.random() > 0.4) {
+                    const particle = document.createElement('div');
+                    particle.className = 'dust-particle';
+                    const size = Math.random() * 2 + 1;
+                    const startX = (Math.random() - 0.5) * 60;
+                    const duration = Math.random() * 1 + 1;
+                    particle.style.width = `${size}px`;
+                    particle.style.height = `${size}px`;
+                    particle.style.left = `calc(50% + ${startX}px)`;
+                    particle.style.top = '10%';
+                    particle.style.animation = `dust-fall ${duration}s linear forwards`;
+                    dustWaterfall.appendChild(particle);
+                    setTimeout(() => { particle.remove(); }, duration * 1000);
+                }
+            }
+            requestAnimationFrame(spawnDust);
+        }
+        spawnDust();
+
+    </script>
+</body>
+</html>
