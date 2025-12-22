@@ -216,9 +216,8 @@
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 24px;  /* 稍微加大宽度以便观察 */
-            height: 12px; /* 稍微加大高度 */
-            pointer-events: none; /* 让点击事件穿透给父级 Label */
+            width: 16px;
+            height: 8px;
         }
         .toggle-switch input { 
             opacity: 0;
@@ -234,26 +233,25 @@
             bottom: 0;
             background-color: rgba(255,255,255,0.2);
             transition: .4s;
-            border-radius: 12px;
+            border-radius: 8px;
         }
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 8px;
-            width: 8px;
-            left: 2px;
-            bottom: 2px;
+            height: 6px;
+            width: 6px;
+            left: 1px;
+            bottom: 1px;
             background-color: white;
             transition: .4s;
             border-radius: 50%;
         }
-        /* 选中状态 */
         input:checked + .toggle-slider {
-            background-color: #10b981; /* 绿色 */
-            box-shadow: 0 0 5px #10b981;
+            background-color: #10b981;
+            box-shadow: 0 0 3px #10b981;
         }
         input:checked + .toggle-slider:before {
-            transform: translateX(12px);
+            transform: translateX(8px);
         }
     </style>
 </head>
@@ -310,8 +308,9 @@
                 <!-- B. 中心图 (静止) - 作为兄弟元素，放在同一个锚点容器中 -->
                 <div id="center-container" class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-80 h-80 md:w-[450px] md:h-[450px] pointer-events-auto cursor-pointer group transition-transform duration-100 ease-out z-20">
                     <div id="dust-waterfall" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 z-0 overflow-visible"></div>
+                    <!-- 修改点：图片路径增加 image/ 前缀 -->
                     <img 
-                        src="ZODIAC-0.PNG" 
+                        src="image/ZODIAC-0.PNG" 
                         alt="Zodiac Center" 
                         class="w-full h-full object-contain relative z-10"
                         style="mix-blend-mode: screen; filter: drop-shadow(0 0 50px rgba(255,255,255,0.15));"
@@ -345,8 +344,8 @@
         // ！！！请在这里填入你的天行数据 API KEY ！！！
         const TIANXING_API_KEY = "78314ad5e2367f931afd03a70d8acccc"; 
         
-        // 全局开关状态，默认关闭
-        let isApiEnabled = false;
+        // 全局开关状态：如果有Key，默认开启；否则关闭
+        let isApiEnabled = !!TIANXING_API_KEY;
 
         const zodiacs = [
           { name: 'Aries', symbol: '♈', label: '白羊座', date: '3.21-4.19' },
@@ -400,47 +399,103 @@
             ];
         }
 
-        // 获取运势数据 (API + Fallback)
+        // 获取运势数据 (带重试和代理)
         async function fetchFortuneData(signName) {
-            // 清理 Key 中的空格
             const cleanKey = TIANXING_API_KEY ? TIANXING_API_KEY.trim() : "";
 
-            // 如果开关没开 或 没有Key，直接用模拟数据
-            if (!isApiEnabled || !cleanKey) {
-                console.log("API disabled or no key, utilizing simulation.");
+            // 1. 如果开关关闭，或者没填Key，直接用模拟数据
+            if (!isApiEnabled) {
+                console.log("API switch is OFF, using simulation.");
+                return getSimulatedFortune(signName);
+            }
+            if (!cleanKey) {
+                alert("未检测到API Key。请在代码中填入密钥，或关闭API开关使用模拟数据。");
                 return getSimulatedFortune(signName);
             }
 
-            try {
-                // 天行数据 API 接口
-                const url = `https://apis.tianapi.com/star/index?key=${cleanKey}&astro=${encodeURIComponent(signName)}`;
-                const response = await fetch(url);
-                const data = await response.json();
+            const apiUrl = `https://apis.tianapi.com/star/index?key=${cleanKey}&astro=${encodeURIComponent(signName)}`;
 
-                if (data.code === 200 && data.result) {
-                    console.log("API Success, utilizing real data.");
-                    return mapApiData(data.result);
+            try {
+                // 2. 尝试直连 (可能被CORS拦截)
+                console.log("尝试直连 API:", apiUrl);
+                let response = await fetch(apiUrl);
+                // 检查响应状态
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                let data = await response.json();
+
+                if (data.code === 200) {
+                    const mapped = mapApiData(data.result || data.newslist); // 兼容不同结构
+                    if (mapped) return mapped;
+                    else {
+                        // 200但解析失败，说明字段缺失
+                        console.warn("API 200 but parsing failed. Falling back to simulation.");
+                        return getSimulatedFortune(signName);
+                    }
                 } else {
-                    console.warn("API Error:", data.msg);
-                    // ！！！关键修改：如果开了开关但失败，给用户弹窗提示！！！
-                    alert(`API 请求失败: ${data.msg}\n已自动切换为模拟数据。请检查 Key 是否正确或额度是否充足。`);
+                    // API逻辑错误 (如Key无效, 额度不足)
+                    console.warn("API逻辑错误:", data);
+                    alert(`API请求失败: ${data.msg} (Code: ${data.code})\n可能是Key无效或额度不足。已切换为模拟数据。`);
                     return getSimulatedFortune(signName);
                 }
-            } catch (error) {
-                console.error("Network request failed:", error);
-                alert("网络请求失败，请检查网络连接。\n已自动切换为模拟数据。");
-                return getSimulatedFortune(signName);
+
+            } catch (directError) {
+                console.warn("直连失败 (通常是CORS跨域限制)，尝试使用代理...", directError);
+                
+                try {
+                    // 3. 尝试通过公共代理访问 (解决本地开发跨域问题)
+                    // 使用 allorigins.win 作为公共代理
+                    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(apiUrl);
+                    let response = await fetch(proxyUrl);
+                    let proxyData = await response.json();
+                    
+                    // allorigins 返回的 JSON 包含 contents 字段，里面是目标API的响应字符串
+                    if (proxyData.contents) {
+                        let data = JSON.parse(proxyData.contents);
+                        if (data.code === 200) {
+                            const mapped = mapApiData(data.result || data.newslist);
+                            if (mapped) return mapped;
+                            else {
+                                 console.warn("Proxy: API 200 but parsing failed.");
+                                 return getSimulatedFortune(signName);
+                            }
+                        } else {
+                            // 代理成功但API返回错误（如key无效）
+                            console.warn("Proxy API error:", data);
+                            return getSimulatedFortune(signName);
+                        }
+                    } else {
+                        throw new Error("Proxy response empty");
+                    }
+
+                } catch (proxyError) {
+                    console.error("代理请求也失败了。", proxyError);
+                    alert("无法连接到API。\n\n原因可能是：\n1. 网络问题\n2. 跨域限制(CORS)且代理失败\n\n已自动切换为模拟数据。");
+                    return getSimulatedFortune(signName);
+                }
             }
         }
 
         // 将 API 返回的数据格式化为我们需要的格式
-        function mapApiData(result) {
+        function mapApiData(rawResult) {
+            // 兼容数组或对象形式
+            let result = rawResult;
+            if (Array.isArray(rawResult)) {
+                result = rawResult[0];
+            }
+
+            // 严格检查：如果缺少核心字段，直接视为无效数据，返回null以触发兜底模拟
+            // 天行数据核心字段: comprehensive (综合), love (爱情), etc.
+            if (!result || !result.comprehensive) {
+                console.error("API 数据缺失核心字段:", result);
+                return null; 
+            }
+
             return [
-                { type: "综合指数", value: parseInt(result.comprehensive || 80), isBar: true, barColor: "bg-gradient-to-r from-gray-300 to-white" },
-                { type: "爱情指数", value: parseInt(result.love || 80), isBar: true, barColor: "bg-pink-300/80 shadow-[0_0_5px_rgba(249,168,212,0.6)]" },
-                { type: "工作指数", value: parseInt(result.work || 80), isBar: true, barColor: "bg-blue-300/80 shadow-[0_0_5px_rgba(147,197,253,0.6)]" },
-                { type: "财运指数", value: parseInt(result.money || 80), isBar: true, barColor: "bg-yellow-200/80 shadow-[0_0_5px_rgba(254,240,138,0.6)]" },
-                { type: "健康指数", value: parseInt(result.health || 80), isBar: true, barColor: "bg-emerald-300/80 shadow-[0_0_5px_rgba(110,231,183,0.6)]" },
+                { type: "综合指数", value: parseInt(result.comprehensive), isBar: true, barColor: "bg-gradient-to-r from-gray-300 to-white" },
+                { type: "爱情指数", value: parseInt(result.love), isBar: true, barColor: "bg-pink-300/80 shadow-[0_0_5px_rgba(249,168,212,0.6)]" },
+                { type: "工作指数", value: parseInt(result.work || result.career), isBar: true, barColor: "bg-blue-300/80 shadow-[0_0_5px_rgba(147,197,253,0.6)]" },
+                { type: "财运指数", value: parseInt(result.money || result.wealth), isBar: true, barColor: "bg-yellow-200/80 shadow-[0_0_5px_rgba(254,240,138,0.6)]" },
+                { type: "健康指数", value: parseInt(result.health), isBar: true, barColor: "bg-emerald-300/80 shadow-[0_0_5px_rgba(110,231,183,0.6)]" },
                 { type: "幸运颜色", value: result.color || "未知", isBar: false },
                 { type: "幸运数字", value: result.number ? result.number.toString() : "7", isBar: false },
                 { type: "贵人星座", value: result.qfriend || "未知", isBar: false },
@@ -475,8 +530,9 @@
             const angle = (index / 12) * 360;
             const radius = 420;
             const imgIndex = index + 1;
-            const frontImg = `Z-${imgIndex}.PNG`;
-            const backImg = `B-${imgIndex}.PNG`;
+            // 修改点：图片路径增加 image/ 前缀
+            const frontImg = `image/Z-${imgIndex}.PNG`;
+            const backImg = `image/B-${imgIndex}.PNG`;
 
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'absolute w-32 h-48 -ml-16 -mt-24 md:w-40 md:h-60 md:-ml-20 md:-mt-30 preserve-3d';
@@ -542,7 +598,7 @@
 
                 // 创建主按钮容器 (Flex列布局)
                 const mainControlContainer = document.createElement('div');
-                // 下沉至 bottom-1
+                // 下沉至 bottom-1 (更低)
                 mainControlContainer.className = 'absolute bottom-2 left-0 w-full flex flex-col items-center gap-1 opacity-0 animate-fade-in-up z-20';
                 mainControlContainer.style.animationDelay = '0.6s';
 
@@ -565,9 +621,8 @@
                     mainControlContainer.remove(); 
                 });
 
-                // 2. API 开关 (隐形且加大点击区域)
+                // 2. API 开关 (隐形)
                 const toggleWrapper = document.createElement('label');
-                // 使用 padding 扩大点击热区，opacity 控制隐蔽性
                 toggleWrapper.className = 'flex items-center justify-center cursor-pointer opacity-30 hover:opacity-100 transition-opacity p-2';
                 toggleWrapper.title = "Toggle API";
 
@@ -585,27 +640,11 @@
                 // 劫持 toggleUI 内部 input 的点击
                 const realInput = toggleUI.querySelector('input');
                 
-                // 处理点击逻辑
-                function handleToggle(e) {
-                     e.stopPropagation();
-                     const target = e.target.type === 'checkbox' ? e.target : realInput;
-                     // 如果是wrapper点击触发，需要手动切换input
-                     if (e.currentTarget === toggleWrapper && e.target !== realInput) {
-                         realInput.checked = !realInput.checked;
-                     }
-                     isApiEnabled = realInput.checked;
-                     // 更新开关颜色 (通过CSS :checked 实现)
-                }
-
                 realInput.addEventListener('change', (e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); 
                     isApiEnabled = e.target.checked;
                 });
-                toggleWrapper.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    // 这里不需要手动切换，因为label包裹input会自动触发
-                });
-
+                toggleWrapper.addEventListener('click', (e) => e.stopPropagation());
                 toggleWrapper.appendChild(toggleUI);
 
                 mainControlContainer.appendChild(btn);
