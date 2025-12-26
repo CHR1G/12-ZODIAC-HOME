@@ -51,6 +51,24 @@
             transform-origin: 0 0;
             transform: translateZ(0); 
         }
+
+        /* === 修复：添加卡牌边缘流光旋转动画 === */
+        @keyframes spin-fast {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-fast {
+            animation: spin-fast 1.5s linear infinite;
+        }
+
+        /* === 修复：添加光标脉冲动画 === */
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.95); }
+        }
+        .animate-pulse-fast {
+            animation: pulse-fast 1.5s ease-in-out infinite;
+        }
         
         .paused {
             animation-play-state: paused !important;
@@ -310,7 +328,7 @@
                     <div id="dust-waterfall" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 z-0 overflow-visible"></div>
                     <!-- 修改点：图片路径增加 image/ 前缀 -->
                     <img 
-                        src="./image/ZODIAC-0.PNG" 
+                        src="image/ZODIAC-0.PNG" 
                         alt="Zodiac Center" 
                         class="w-full h-full object-contain relative z-10"
                         style="mix-blend-mode: screen; filter: drop-shadow(0 0 50px rgba(255,255,255,0.15));"
@@ -531,8 +549,8 @@
             const radius = 420;
             const imgIndex = index + 1;
             // 修改点：图片路径增加 image/ 前缀
-            const frontImg = `./image/Z-${imgIndex}.PNG`;
-            const backImg = `./image/B-${imgIndex}.PNG`;
+            const frontImg = `image/Z-${imgIndex}.PNG`;
+            const backImg = `image/B-${imgIndex}.PNG`;
 
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'absolute w-32 h-48 -ml-16 -mt-24 md:w-40 md:h-60 md:-ml-20 md:-mt-30 preserve-3d';
